@@ -4,7 +4,7 @@ type ScalingFunction = (number) => number;
 type CallbackFunc = (number) => number;
 type ActivationFunc = (number) => number;
 
-class Neuron
+export class Neuron
 {
  Last_nominal: number = 0;
  Function_value: number = 0;
@@ -12,11 +12,11 @@ class Neuron
 
  Iteration: number = 0;
  SubIteration: number = 0; //Used only for building of the CalculatedConnectionsPlay
- MaxSubIterations: number = 0; //Used only for building of the CalculatedConnectionsPlay
+ MaxSubIterations: number = 1; //Used only for building of the CalculatedConnectionsPlay
 
  Index: number = 0;
 
- constructor(LastNominal: number, MaxSubIterations,ScalingFunction: ScalingFunction = ScalingFunctions[0])
+ constructor(LastNominal: number = 0, MaxSubIterations : number = 1,ScalingFunction: ScalingFunction = ScalingFunctions[0])
  {
     this.ScalingFunction = ScalingFunction;
     this.Last_nominal = LastNominal;
@@ -24,7 +24,7 @@ class Neuron
  }
 }
 
-class Connection
+export class Connection
 {
  NeuronId1: number;
  NeuronId2: number;
@@ -44,22 +44,21 @@ class Connection
  }
 }
 
-class Network
+export class Network
 {
  CurrentIteration : number = 0;
 
  Neurons : Neuron[] = [];
 
  InputNeurons : Neuron[] = []; //Rule for updating CurrentIteration within input neurons is a bit loose. (the update might happen depending on how the neural network is built, but this feature nontheless was in intentions and also came in handy with setting values for the input neurons)
- InputNeuronsCallbackFunc : CallbackFunc[];
 
  OutputNeurons : Neuron[] = [];
- OutputNeuronsIsActivated : ActivationFunc[]; //this feature allows for the AI to perform multiple outputs at the same time
+ OutputNeuronsIsActivated : ActivationFunc[] = []; //this feature allows for the AI to perform multiple outputs at the same time
 
- Connections : (Connection | null)[][]; //[Neuron1Id][num] :  Connection
- ConnectionsBack : (Connection | null)[][]; //[Neuron2Id][num] : Connection
+ Connections : Connection[][] = []; //[Neuron1Id][num] :  Connection
+ ConnectionsBack : Connection[][] = []; //[Neuron2Id][num] : Connection
 
- CalculatedConnectionsPlay : Connection[]; 
+ CalculatedConnectionsPlay : Connection[] = []; 
 
  processConnection(Connection: Connection)
  {
@@ -80,35 +79,50 @@ class Network
  calculateConnectionsPlay() //This allows to put the neural network into 1 dimensional array, which can easily be processed.
  {
   this.CurrentIteration += 1;
-  let CalculatedConnectionsPlayNew = [];
-  
-  let NextIterable = []; //replaces Iterable after the end of for loop
-
+  let CalculatedConnectionsPlayNew : Connection[] = [];
+  let NextIterable : Neuron[] = []; //replaces Iterable after the end of for loop
   let Iteratable = this.InputNeurons;
-
   while (Iteratable.length > 0)
   {
    for (let i = 0;i < Iteratable.length;i++)
    {
     let Neuron : Neuron = Iteratable[i];
-    
     if (Neuron.Iteration != this.CurrentIteration)
     {
       Neuron.Iteration = this.CurrentIteration;
       Neuron.SubIteration = 0;
     }
+    else if(Neuron.SubIteration == Neuron.MaxSubIterations)
+    {
+     continue;
+    }
+    Neuron.SubIteration += 1;
+    let Connections = this.Connections[Neuron.Index];
+    if (!Connections)
+    {
+     continue;
+    }
+    
+    Connections.forEach(Connection => {
+     
+      if (Connection == undefined)
+      {
+       return 
+      }
 
+     let Neuron : Neuron = this.Neurons[Connection.NeuronId2];
 
-
+     NextIterable.push(Neuron);
+     CalculatedConnectionsPlayNew.push(Connection);
+    })
 
    } 
    Iteratable = NextIterable;
   }
-
   this.CalculatedConnectionsPlay = CalculatedConnectionsPlayNew;
  }
 
- destroy(NeuronId : number)
+ destroy(NeuronId : number) 
  {
   let Connections = this.Connections[NeuronId];
 
@@ -171,7 +185,6 @@ class Network
   if (Type == "Input")
   {
    this.InputNeurons.push(Neuron_);
-   this.InputNeuronsCallbackFunc = CallbackFunc;
   }
   else if (Type == "Output")
   {
@@ -188,8 +201,8 @@ class Network
 
  disconnect(Connection: Connection) 
  {
-  this.Connections[Connection.NeuronId1][Connection.NeuronId2] = null;
-  this.ConnectionsBack[Connection.NeuronId2][Connection.NeuronId1] = null;
+  this.Connections[Connection.NeuronId1].slice(Connection.NeuronId2,Connection.NeuronId2);
+  this.ConnectionsBack[Connection.NeuronId2].slice(Connection.NeuronId1,Connection.NeuronId1);
  }
 
  connect(NeuronId1: number,NeuronId2: number,Weight: number,ScalingFunction: ScalingFunction) : Connection
@@ -223,7 +236,7 @@ class Network
   return Connection_2;
  }
 
- predict_value(): boolean {
+ predictValue(): boolean {
     if (this.CalculatedConnectionsPlay.length === 0) {
         console.error("For the function predict_value to work, you must calculate CalculatedConnectionsPlay.");
         return false;
@@ -241,7 +254,7 @@ class Network
 
  iterate() 
  {
-  let Success = this.predict_value();
+  let Success = this.predictValue();
 
   if (!Success)
   {
@@ -287,3 +300,5 @@ class Network
 
  }
 }
+
+export let ScaleFunctions = ScalingFunctions;
